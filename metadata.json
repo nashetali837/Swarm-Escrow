@@ -1,0 +1,14 @@
+{
+  "name": "Swarm Escrow",
+  "description": "An AI-powered ecommerce escrow platform utilizing agent swarms for fraud detection, document intelligence, and multi-jurisdiction compliance.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "AI-Powered Fraud Detection",
+    "Agentic Document Extraction",
+    "Python-Powered Swarm Intelligence",
+    "Multi-Chain Smart Contract Integration"
+  ]
+}

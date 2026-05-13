@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial escrow transaction handled by SwarmEscrow",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique transaction ID" },
+        "vertical": { "type": "string", "description": "Industry vertical (e.g., ecommerce, real_estate)" },
+        "amount": { "type": "number", "description": "Transaction value" },
+        "currency": { "type": "string", "description": "Currency code (ISO)" },
+        "status": { "type": "string", "enum": ["locked", "released", "disputed"], "description": "Escrow status" },
+        "buyer": { "type": "string", "description": "Buyer identifier" },
+        "seller": { "type": "string", "description": "Seller identifier" },
+        "fraudScore": { "type": "number", "description": "Calculated fraud probability (0-1)" },
+        "trustConsensus": { "type": "number", "description": "Agent collective trust score (0-1)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation" }
+      },
+      "required": ["id", "amount", "currency", "status"]
+    },
+    "AgentLog": {
+      "title": "AgentLog",
+      "description": "Log entry from a swarm agent during transaction analysis",
+      "type": "object",
+      "properties": {
+        "txId": { "type": "string", "description": "Associated transaction ID" },
+        "agentId": { "type": "string", "description": "Identifier of the agent" },
+        "verdict": { "type": "string", "description": "Analysis result (e.g., CLEAR, SUSPICIOUS)" },
+        "score": { "type": "number", "description": "Confidence score" },
+        "message": { "type": "string", "description": "Detailed log message" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Time of log entry" }
+      },
+      "required": ["txId", "agentId", "verdict"]
+    }
+  },
+  "firestore": {
+    "/transactions/{txId}": {
+      "schema": "Transaction",
+      "description": "Collection of all escrow transactions"
+    },
+    "/agent_logs/{logId}": {
+      "schema": "AgentLog",
+      "description": "Global activity logs from the swarm agents"
+    }
+  }
+}

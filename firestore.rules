@@ -1,0 +1,90 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitives & Helpers ---
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(data) {
+      return isSignedIn() && (data.buyer == request.auth.uid || data.seller == request.auth.uid);
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['id', 'amount', 'currency', 'status', 'vertical']) &&
+             data.id is string && data.id.size() <= 100 &&
+             data.amount is number && data.amount > 0 &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.status in ['locked', 'released', 'disputed'] &&
+             data.vertical is string && data.vertical.size() <= 64 &&
+             (!('fraudScore' in data) || (data.fraudScore is number && data.fraudScore >= 0 && data.fraudScore <= 1)) &&
+             (!('trustConsensus' in data) || (data.trustConsensus is number && data.trustConsensus >= 0 && data.trustConsensus <= 1));
+    }
+
+    function isValidAgentLog(data) {
+      return data.keys().hasAll(['txId', 'agentId', 'verdict', 'timestamp']) &&
+             isValidId(data.txId) &&
+             data.agentId is string && data.agentId.size() <= 100 &&
+             data.verdict is string && data.verdict.size() <= 50 &&
+             data.message is string && data.message.size() <= 1000 &&
+             data.timestamp is string;
+    }
+
+    // --- Collections ---
+
+    match /transactions/{txId} {
+      allow get: if isSignedIn() && isOwner(existing());
+      allow list: if isSignedIn() && (resource.data.buyer == request.auth.uid || resource.data.seller == request.auth.uid);
+      
+      allow create: if isSignedIn() && 
+                    isValidId(txId) && 
+                    isValidTransaction(incoming()) &&
+                    (incoming().buyer == request.auth.uid); 
+
+      allow update: if isSignedIn() && 
+                    isOwner(existing()) &&
+                    isValidTransaction(incoming()) && (
+                      (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trustConsensus', 'updatedAt'])) ||
+                      (incoming().status == 'disputed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+                    );
+    }
+
+    match /agent_logs/{logId} {
+      allow get: if isSignedIn() && 
+                 exists(/databases/$(database)/documents/transactions/$(existing().txId)) &&
+                 isOwner(get(/databases/$(database)/documents/transactions/$(existing().txId)).data);
+      
+      allow list: if isSignedIn(); 
+
+      allow create: if isSignedIn() && 
+                    isValidId(logId) && 
+                    isValidAgentLog(incoming());
+    }
+  }
+}
